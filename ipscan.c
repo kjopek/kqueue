@@ -489,6 +489,7 @@ setup_graph_file(in_addr_t addr, int mask, const char *filename,
 	graph->nidx = 0;
 }
 
+#if 0
 static void
 setup_capabilities(int sock, int fd)
 {
@@ -507,6 +508,7 @@ setup_capabilities(int sock, int fd)
 	if (cap_enter() == -1)
 		errx(EX_OSERR, "Cannot enter sandbox");
 }
+#endif
 
 static int
 create_raw_sock(void)
