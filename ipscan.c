@@ -186,7 +186,7 @@ send_packet(int sock, in_addr_t addr, unsigned char ttl, int id)
 	if (ret < 0) {
 		fprintf(stderr, "Warning: sendto(2) returned %jd while sending to %s",
 		    ret, inet_ntoa(inaddr.sin_addr));
-		fprintf(stderr, " errno=%zd\n", errno);
+		fprintf(stderr, " errno=%d\n", errno);
 	}
 
 	return (ret);
@@ -211,11 +211,14 @@ scan_next(int kq, int sock, struct graph *graph, int idx)
 {
 	struct session *session;
 
-	if (graph->counter < graph->max_counter) {
-		graph->counter = ip4_next_addr(graph->counter);
 
+	graph->counter = ip4_next_addr(graph->counter);
+#ifdef DEBUG
+	fprintf(stderr, "Counter: %x.\n", (uint32_t)graph->counter);
+#endif
+	if (graph->counter < graph->max_counter) {
 		session = &graph->sessions[idx];
-		session->dest.s_addr = htonl((uint32_t)graph->counter);
+		session->dest.s_addr = htonl((uint32_t)(graph->counter & 0xFFFFFFFF));
 		session->last_ttl = 0;
 
 		return (scan_curr(kq, sock, graph, idx));
@@ -463,7 +466,11 @@ setup_graph_file(in_addr_t addr, int mask, const char *filename,
 	mode_t perms;
 
 	graph->counter = ntohl(addr);
-	graph->max_counter = graph->counter + (1 << (32 - mask)) - 1;
+	graph->max_counter = graph->counter + (1UL << (32UL - mask)) - 1UL;
+#ifdef DEBUG
+	fprintf(stderr, "Counter: %lx, max: %lx.\n", graph->counter,
+	    graph->max_counter);
+#endif
 	graph->vm_map_size = (size_t)0x100000000 * sizeof(struct vertex);
 
 	perms = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
@@ -542,8 +549,7 @@ main(int argc, char **argv)
 	struct graph graph;
 	struct in_addr addr;
 
-	icmp_sock = create_raw_sock();
-	drop_permissions();
+
 
 	mask = 0;
 	addr.s_addr = 0;
@@ -575,6 +581,9 @@ main(int argc, char **argv)
 			exit(1);
 		}
 	}
+
+	icmp_sock = create_raw_sock();
+	drop_permissions();
 
 	if (signal(SIGINT, SIG_IGN) == SIG_ERR)
 		err(1, "signal(3) failed");
